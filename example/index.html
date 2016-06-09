@@ -437,12 +437,17 @@ function onBoardMouseUp(event) {
     } else if (game.lastMove.algebraic === 'O-O-O') {
       movePiece(0, dy, 3, dy);
     }
-    console.log(game.lastMove);
   } else {
     movePiece(null, null, sx, sy);
   }
 
   dragStart = null;
+  if (game.isAwaitingPromotion) {
+    var piece = prompt('Promote pawn to:', 'Queen');
+    piece = { k: 'knight', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' }[(piece[0] || '').toLowerCase()] || 'queen';
+    game.promote(dx, dy, piece);
+    pieceDivs[dx][dy].className = 'piece ' + (game.board[dx][dy].color ? 'black' : 'white') + '-' + piece;
+  }
 }
 
 </script>
