@@ -15,6 +15,7 @@ html, body {
 body {
   align-items: center;
   display: flex;
+  justify-content: center;
 }
 .chess {
   background-color: rgba(181, 136, 99, 0.2);
@@ -24,7 +25,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 14px;
   height: 540px;
-  margin: 0 auto;
   width: 540px;
 }
 .chess p {
@@ -33,8 +33,8 @@ body {
 }
 .file-ruler {
   display: flex;
-  height: 5.556%;     /* 30px */
-  padding: 0 5.556%;  /* 0 30px */
+  height: 5.556%;  /* 1/2 square */
+  padding: 0 5.556%;
 }
 .file-ruler:nth-child(1) p {
   display: none;  /* hide top ruler */
@@ -72,7 +72,7 @@ body {
 .rank-ruler {
   display: flex;
   flex-direction: column;
-  width: 5.556%;  /* 30px */
+  width: 5.556%;  /* 1/2 square */
 }
 .rank-ruler:nth-child(3) p {
   display: none;  /* hide right ruler */
@@ -129,6 +129,12 @@ body {
 .board > div:not(.piece):nth-child(odd) > div:nth-child(even),
 .board > div:not(.piece):nth-child(even) > div:nth-child(odd) {
   background-color: #b58863;
+}
+.option {
+  background-color: #5c5 !important;
+}
+.option-dark {
+  background-color: #0c0 !important;
 }
 .piece {
   background-size: 100% 100%;
@@ -284,7 +290,6 @@ body {
         <div></div>
         <div></div>
       </div>
-      <div class="piece white-king"></div>
     </div>
     <div class="rank-ruler">
       <div><p></p></div>
@@ -308,6 +313,139 @@ body {
     <div><p></p></div>
   </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/systemjs/0.19.29/system.js"></script>
+<script>
+
+// For purposes of this demo I'm too lazy to prebuild chess.js
+System.config({
+  map: {
+    babel: 'https://cdnjs.cloudflare.com/ajax/libs/babel-core/6.1.19/browser.min.js'
+  },
+  transpiler: 'babel'
+});
+
+System.import('../lib/chess.js').then(function(ChessGame) {
+  game = new ChessGame();
+  spawnPieces();
+}).catch(function(e) {
+  console.error(e);
+});
+
+var game;
+
+var boardDiv = document.querySelector('.board');
+boardDiv.addEventListener('mousemove', onBoardMouseMove);
+boardDiv.addEventListener('mouseup', onBoardMouseUp);
+
+var squareDivs = [[], [], [], [], [], [], [], []];
+for (var x = 0; x < 8; x++) {
+  for (var y = 0; y < 8; y++) {
+    squareDivs[x][y] = document.querySelector('.board > div:nth-child(' + (8 - y) + ') > div:nth-child(' + (x + 1) + ')');
+  }
+}
+
+var pieceDivs = [[], [], [], [], [], [], [], []];
+var zIndex = 100;
+var dragStart;
+
+function spawnPieces() {
+  for (var x = 0; x < 8; x++) {
+    for (var y = 0; y < 8; y++) {
+      var square = game.board[x][y];
+      if (square) {
+        pieceDivs[x][y] = document.createElement('div');
+        var pieceDiv = pieceDivs[x][y];
+        pieceDiv.className = 'piece ' + (square.color ? 'black' : 'white') + '-' + square.piece;
+        pieceDiv.addEventListener('mousedown', onPieceMouseDown);
+        boardDiv.appendChild(pieceDiv);
+        movePiece(null, null, x, y);
+      }
+    }
+  }
+}
+
+function movePiece(sx, sy, dx, dy, captureX, captureY) {
+  if (sx !== null && sy !== null) {
+    if (typeof captureX === 'number') {
+      pieceDivs[captureX][captureY].remove();
+    }
+    pieceDivs[dx][dy] = pieceDivs[sx][sy];
+  }
+  pieceDivs[dx][dy].style.left = (12.5 * dx) + '%';
+  pieceDivs[dx][dy].style.top = (12.5 * (7 - dy)) + '%';
+}
+
+function getFile(clientX) {
+  return Math.floor(8 * (clientX - boardDiv.offsetLeft) / boardDiv.clientWidth);;
+}
+
+function getRank(clientY) {
+  return Math.floor(8 * (boardDiv.clientHeight - clientY + boardDiv.offsetTop) / boardDiv.clientHeight);
+}
+
+function onPieceMouseDown(event) {
+  event.preventDefault();
+  if (dragStart) {
+    onBoardMouseUp(event);
+  } else {
+    var sx = getFile(event.clientX);
+    var sy = getRank(event.clientY);
+    // Highlight squares
+    game.board[sx][sy].options.forEach(function(move) {
+      squareDivs[move.x][move.y].className = (move.x % 2 && !(move.y % 2) || !(move.x % 2) && move.y % 2) ? 'option' : 'option-dark';
+    });
+    dragStart = { file: sx, rank: sy, offsetX: event.offsetX, offsetY: event.offsetY };
+    // Elevate the held piece
+    pieceDivs[sx][sy].style.zIndex = ++zIndex;
+  }
+}
+
+function onBoardMouseMove(event) {
+  if (!dragStart) return;
+  var pieceDiv = pieceDivs[dragStart.file][dragStart.rank];
+  var isInsideHorizontal = event.clientX - dragStart.offsetX >= boardDiv.offsetLeft
+                        && event.clientX + boardDiv.clientWidth / 8 - dragStart.offsetX <= boardDiv.offsetLeft + boardDiv.clientWidth;
+  var isInsideVertical = event.clientY - dragStart.offsetY >= boardDiv.offsetTop
+                      && event.clientY + boardDiv.clientHeight / 8 - dragStart.offsetY <= boardDiv.offsetTop + boardDiv.clientHeight
+
+  if (isInsideHorizontal) {
+    pieceDiv.style.left = (event.clientX - boardDiv.offsetLeft - dragStart.offsetX) + 'px';
+  }
+  if (isInsideVertical) {
+    pieceDiv.style.top = (event.clientY - boardDiv.offsetTop - dragStart.offsetY) + 'px';
+  }
+}
+
+function onBoardMouseUp(event) {
+  if (!dragStart) return;
+  var sx = dragStart.file;
+  var sy = dragStart.rank;
+  var dx = getFile(event.clientX);
+  var dy = getRank(event.clientY);
+
+  // Unhighlight squares
+  game.board[sx][sy].options.forEach(function(move) {
+    squareDivs[move.x][move.y].className = '';
+  });
+
+  var move = game.move(sx, sy, dx, dy);
+  if (move) {  // truthy when legal
+    movePiece(sx, sy, dx, dy, move.x, move.y);
+    if (game.lastMove.algebraic === 'O-O') {
+      movePiece(7, dy, 5, dy);
+    } else if (game.lastMove.algebraic === 'O-O-O') {
+      movePiece(0, dy, 3, dy);
+    }
+    console.log(game.lastMove);
+  } else {
+    movePiece(null, null, sx, sy);
+  }
+
+  dragStart = null;
+}
+
+</script>
 
 </body>
 </html>
