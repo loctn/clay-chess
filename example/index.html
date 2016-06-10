@@ -445,7 +445,7 @@ function onBoardMouseUp(event) {
   if (game.isAwaitingPromotion) {
     var piece = prompt('Promote pawn to:', 'Queen');
     piece = { k: 'knight', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' }[(piece[0] || '').toLowerCase()] || 'queen';
-    game.promote(dx, dy, piece);
+    game.promote(piece);
     pieceDivs[dx][dy].className = 'piece ' + (game.board[dx][dy].color ? 'black' : 'white') + '-' + piece;
   }
 }
